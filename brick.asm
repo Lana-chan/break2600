@@ -21,10 +21,11 @@ Clear
   sta CTRLPF ; reflect playfield
   
   lda #%01001100
-  sta COLUP0
+  sta COLUP0 ; paddle color
   
   lda #0
-  sta FRAME
+  sta FRAME ; clear variables
+  lda #3
   sta POSX
 
 StartOfFrame
@@ -34,27 +35,26 @@ StartOfFrame
   inc FRAME
 
   lda FRAME
-  and #%00010000
+  and #%00010000 ; mask frame count (delay)
   beq NoMove
-  lda #0
+  lda #0 ; clear frame
   sta FRAME
-  inc POSX
-  lda #11
+  inc POSX ; move right
+  lda #11 ; right boundary is 11
   cmp POSX
   bcs NoMove
-  lda #3
+  lda #3 ; left boundary is 3
   sta POSX
-  
 NoMove
     
   lda #%00000000
-  sta GRP0
+  sta GRP0 ; clear sprite
   
   lda #%01011110
   sta COLUPF ; playfield color
   
   lda #%11111111
-  sta PF0
+  sta PF0 ; make ceiling
   sta PF1
   sta PF2
 
@@ -81,21 +81,16 @@ NoMove
   ldx #0
 
 ; top
-  ;lda #%11111111
-  ;sta PF0
-  ;sta PF1
-  ;sta PF2
   
-  lda #%01011110
-TopLines
-  sta COLUPF
+TopLines ; top 8 scanlines playfield fade
   sta WSYNC
   sbc #1
+  sta COLUPF
   inx
   cpx #8
   bne TopLines
 
-; walls
+; walls ; blank walls
   lda #%01011110
   sta COLUPF
   lda #%00010000
@@ -112,18 +107,18 @@ MiddleLines
   
 ; bottom fade
   ldx POSX
-WaitPos
+WaitPos ; paddle positioning (very rudimentary)
   dex
   bne WaitPos
   sta RESP0
   sta WSYNC
 
-  lda #%01111110
+  lda #%01111110 ; sprite top
   sta GRP0
   lda #%01011100
   sta COLUPF
   sta WSYNC
-  lda #%11111111
+  lda #%11111111 ; sprite middle
   sta GRP0
   lda #%01011100
   
@@ -134,7 +129,7 @@ WaitPos
   repend
   
   sta COLUPF
-  lda #%01111110
+  lda #%01111110 ; sprite bottom
   sta GRP0
   dex
   sta WSYNC
