@@ -1,3 +1,7 @@
+; Break2600
+; Assembly exercise by Svetlana
+; http://mynameiser.in/
+
   processor 6502
   include "vcs.h"
   include "macro.h"
@@ -8,10 +12,10 @@
 FRAME   = $80
 POSX    = $81
 
-Reset
+Reset:
   ldx #0
   lda #0
-Clear
+Clear:
   sta 0,x
   inx
   bne Clear
@@ -28,30 +32,27 @@ Clear
   lda #3
   sta POSX
 
-StartOfFrame
+StartOfFrame:
 
 ; Start of vertical blank processing
 
   inc FRAME
 
   lda FRAME
-  and #%00010000 ; mask frame count (delay)
+  and #%00000010 ; mask frame count (delay)
   beq NoMove
   lda #0 ; clear frame
   sta FRAME
   inc POSX ; move right
-  lda #11 ; right boundary is 11
+  lda #100 ; right boundary is 11
   cmp POSX
   bcs NoMove
   lda #3 ; left boundary is 3
   sta POSX
-NoMove
-    
+NoMove:
+  
   lda #%00000000
   sta GRP0 ; clear sprite
-  
-  lda #%01011110
-  sta COLUPF ; playfield color
   
   lda #%11111111
   sta PF0 ; make ceiling
@@ -63,7 +64,7 @@ NoMove
 
   lda #2
   sta VSYNC
-            
+  
 ; 3 scanlines of VSYNC signal...
   repeat 3
     sta WSYNC
@@ -81,8 +82,10 @@ NoMove
   ldx #0
 
 ; top
+  lda #%01011110
+  sta COLUPF ; playfield color
   
-TopLines ; top 8 scanlines playfield fade
+TopLines: ; top 8 scanlines playfield fade
   sta WSYNC
   sbc #1
   sta COLUPF
@@ -99,19 +102,23 @@ TopLines ; top 8 scanlines playfield fade
   sta PF1
   sta PF2
   
-MiddleLines
+  lda POSX
+  ldx #0
+  jsr PosObject
+  
+MiddleLines:
   sta WSYNC
   inx
   cpx #183
   bne MiddleLines
   
 ; bottom fade
-  ldx POSX
-WaitPos ; paddle positioning (very rudimentary)
-  dex
-  bne WaitPos
-  sta RESP0
-  sta WSYNC
+;  ldx POSX
+;WaitPos: ; paddle positioning (very rudimentary)
+;  dex
+;  bne WaitPos
+;  sta RESP0
+;  sta WSYNC
 
   lda #%01111110 ; sprite top
   sta GRP0
@@ -143,6 +150,22 @@ WaitPos ; paddle positioning (very rudimentary)
   repend
   
   jmp StartOfFrame
+  
+PosObject:        ; A holds X value
+  sec             ; 2  
+  sta WSYNC       ; X holds object, 0=P0, 1=P1, 2=M0, 3=M1, 4=Ball
+DivideLoop:
+  sbc #15         ; 2  
+  bcs DivideLoop  ; 2  4
+  eor #7          ; 2  6
+  asl             ; 2  8
+  asl             ; 2 10
+  asl             ; 2 12
+  asl             ; 2 14
+  sta.wx HMP0,X   ; 5 19
+  sta RESP0,X     ; 4 23 <- set object position
+SLEEP12:
+  rts             ; 6 29
 
   ORG $FFFA
 
