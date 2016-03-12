@@ -51,6 +51,26 @@ PosX:     ds 1
     
     ; 2K ROM starts at $F800, 4K ROM starts at $F000
     ORG $F000
+    
+;===============================================================================
+; Object positioning code
+;===============================================================================
+
+PosObject:        ; A holds X value
+        sec             ; 2  
+        sta WSYNC       ; X holds object, 0=P0, 1=P1, 2=M0, 3=M1, 4=Ball
+DivideLoop:
+        sbc #15         ; 2  
+        bcs DivideLoop  ; 2  4
+        eor #7          ; 2  6
+        asl             ; 2  8
+        asl             ; 2 10
+        asl             ; 2 12
+        asl             ; 2 14
+        sta.wx HMP0,X   ; 5 19
+        sta RESP0,X     ; 4 23 <- set object position
+SLEEP12:
+        rts             ; 6 29
 
 ;===============================================================================
 ; Initialize Atari
@@ -114,8 +134,8 @@ VerticalBlank:
         inc Frame
 
         lda Frame
-        and #%00000100 ; mask frame count (delay)
-        beq NoMove
+        cmp #2 ; this happens every 4 frames
+        bne NoMove
         lda #0 ; clear frame
         sta Frame
         inc PosX ; move right
@@ -125,7 +145,20 @@ VerticalBlank:
         lda #0 ; left boundary is 0
         sta PosX
 NoMove:
-        
+
+MoveObjects:
+        lda PosX
+        ldx #0
+        jsr PosObject
+        sta WSYNC
+        sta HMOVE
+ 
+SetupPlayfield: 
+        lda #%11111111
+        sta PF0 ; make ceiling
+        sta PF1
+        sta PF2
+
         rts             ; ReTurn from Subroutine
 
     
@@ -143,24 +176,17 @@ Kernel:
         bne Kernel      ; Branch if its Not Equal to 0
     ; turn on the display
         sta VBLANK      ; Accumulator D1=0, turns off Vertical Blank signal (image output on)
-        
-        lda #%00000000
-        sta GRP0 ; clear sprite
-        
-        lda #%11111111
-        sta PF0 ; make ceiling
-        sta PF1
-        sta PF2
 
     ; top 8 scanlines playfield fade
+        sta WSYNC
         ldy #0
         lda #%01011110
         sta COLUPF ; playfield color
         
 TopLines:
-        sta WSYNC
-        sbc #1
         sta COLUPF
+        sbc #1
+        sta WSYNC
         iny
         cpy #8
         bne TopLines
@@ -177,14 +203,8 @@ TopLines:
 MiddleLines:
         sta WSYNC
         iny
-        cpy #182
+        cpy #183
         bne MiddleLines
-
-        lda PosX
-        ldx #0
-        jsr PosObject
-        sta WSYNC
-        sta HMOVE
         
     ; bottom 8 lines
         lda #%01111110 ; sprite top
@@ -205,8 +225,12 @@ MiddleLines:
         sta COLUPF
         lda #%01111110 ; sprite bottom
         sta GRP0
-        dex
         sta WSYNC
+
+        lda #%00000000
+        sta GRP0 ; clear sprite
+        
+        rts
 
         
 ;===============================================================================
@@ -238,27 +262,6 @@ OSwait:
         lda INTIM   ; Check the timer
         bne OSwait  ; Branch if its Not Equal to 0
         rts         ; ReTurn from Subroutine
-        
-;===============================================================================
-; Object positioning code
-;===============================================================================
-
-PosObject:        ; A holds X value
-        sec             ; 2  
-        sta WSYNC       ; X holds object, 0=P0, 1=P1, 2=M0, 3=M1, 4=Ball
-DivideLoop:
-        sbc #15         ; 2  
-        bcs DivideLoop  ; 2  4
-        eor #7          ; 2  6
-        asl             ; 2  8
-        asl             ; 2 10
-        asl             ; 2 12
-        asl             ; 2 14
-        sta.wx HMP0,X   ; 5 19
-        sta RESP0,X     ; 4 23 <- set object position
-SLEEP12:
-        rts             ; 6 29
-    
         
 ;===============================================================================
 ; Define End of Cartridge
